@@ -1,91 +1,54 @@
-# SkyTrace — live flight tracking
+# SkyTrace — flight tracking demo
 
-A polished, fully client-side flight tracking dashboard. Search any flight, follow it across a
-live world map, read off altitude, speed and gate information, and watch an airport departures and
-arrivals board update in real time.
+SkyTrace is a responsive flight-tracking experience built with Vite, React, TypeScript, and a custom D3 world map. Search sample flights and airports, inspect route/status/schedule details, filter airport boards, and save flights to a device-local watchlist.
 
-> **Demo data:** every flight, airport and weather value in this project is simulated. There are no
-> API keys, no backend and no network calls at runtime. Do not use it for operational decisions.
+> **Data notice:** this checkout has no flight-data provider, API credentials, or backend configured. All flights, positions, telemetry, weather, gates, and schedules are sample/simulated data. The app labels the source as **Demo data** throughout. It is not real-time and must not be used for travel decisions or operational use.
 
-## Highlights
-
-- **Search anything** — flight number (`BA74`), airline, city (`Lagos`), airport code (`LOS`), or a
-  route (`LOS LHR`). Full keyboard support with `/` or `⌘K` / `Ctrl K` to focus, arrows to move,
-  `Enter` to open, `Esc` to dismiss.
-- **Live world map** — Natural Earth country geometry projected with `d3-geo`, great-circle route
-  arcs, an animated aircraft marker with heading, pulsing destination marker, and a network layer
-  of every other airborne flight. The projection auto-centres on the tracked route, so Pacific
-  crossings stay in view instead of wrapping at the antimeridian.
-- **Flight dashboard** — status badge, scheduled vs. estimated times in each airport's own time
-  zone (including `+1` day markers), progress timeline, gates and terminals, baggage belt, live
-  telemetry (altitude, ground speed, heading, vertical rate, distance and time to go), aircraft and
-  callsign details.
-- **Flight timeline** — check-in, boarding, pushback, cruise, descent and touchdown, with completed,
-  current and upcoming states.
-- **Airport boards** — departures and arrivals for Lagos, London, New York, Dubai, Doha, Paris,
-  Addis Ababa and Nairobi. Board language adapts to the tab ("Departed" on departures, "On time" on
-  arrivals) and rows link straight through to tracking.
-- **Watchlist** — star flights from any screen; the list is stored in `localStorage` and survives
-  reloads. Empty and populated states are both designed.
-- **Edge cases** — cancelled flights (no aircraft marker, rose dashed route, rebooking notice) and
-  landed flights (full route, "tracking complete") are handled explicitly.
-- **Responsive & accessible** — layout adapts down to 360 px, semantic landmarks, `aria` state on
-  tabs/toggles/search, visible focus rings, and `prefers-reduced-motion` support.
-
-## Getting started
+## Start locally
 
 Requires Node.js 20 or newer.
 
-```bash
-npm install
+```sh
+npm ci
 npm run dev      # http://localhost:5173
-npm run build    # type-check + production build to dist/
-npm run preview  # serve the production build
+npm run build    # strict TypeScript check + production build
+npm run preview  # serve dist/
 ```
 
-## Project structure
+There is no lint or test script in the current repository. The production build runs the configured TypeScript project checks.
 
-```
+## Data architecture
+
+- `src/domain/models.ts` defines the typed flight, aircraft, route, coordinate, and data-source status models.
+- `src/services/flightProvider.ts` defines the provider interface, validates/normalizes unknown flight records, and supplies the local sample provider.
+- `src/data/` contains the bundled airport, airline, and simulated schedule fixtures.
+- `src/lib/flight.ts` derives sample status, route progress, and estimated telemetry from the schedule clock.
+- UI components consume the provider-loaded flight records; the sample provider deliberately reports `mode: demo`, no source update timestamp, and an explanatory message.
+
+A real integration should implement `FlightDataProvider` in a server-side adapter and serve normalized records from a same-origin backend endpoint. Keep provider secrets in server environment variables. **Do not put private API keys in `VITE_*` variables or browser code.** A backend/proxy should handle provider authentication, rate limits, timeouts, caching, malformed upstream payloads, and stale-data reporting. No real provider is selected or contacted by this demo.
+
+`.env.example` documents placeholder server settings for a future proxy; it is not required to run the demo. Copy configuration to a local, ignored environment file only when implementing the server adapter.
+
+## Data and UI behavior
+
+- The amber provenance bar shows that the source is sample data and displays the simulation clock in UTC. A simulation time is not a provider freshness timestamp.
+- Search supports flight numbers, airline names, routes, airport codes, and city/airport names; `/` or `Ctrl/⌘K` focuses it, arrow keys navigate results, Enter selects, and Escape closes.
+- The airport board offers departures/arrivals with airline and status filters. Board times are shown in the selected airport's time zone.
+- The map uses bundled Natural Earth geometry from `world-atlas`, `d3-geo`, and `topojson-client`, so it does not need a paid token or map network service. Pan/zoom controls work locally; route and airport geometry are based on bundled fixtures.
+- The watchlist is stored in this browser's `localStorage`; it is not synced to an account. If browser storage is blocked, the page reports that changes may not persist.
+- Missing or invalid provider records are rejected during normalization before they reach UI state. A provider load error produces a retryable unavailable state.
+
+## Project map
+
+```text
 src/
-  App.tsx                  view routing, live clock, watchlist state
-  components/
-    Header.tsx             brand, navigation, local clock
-    Search.tsx             fuzzy search + keyboard navigation
-    FlightHero.tsx         flight summary, route progress
-    MapCard.tsx            map chrome, network toggle, map stats
-    WorldMap.tsx           d3-geo projection, route arcs, aircraft markers
-    SideCards.tsx          gates, telemetry, aircraft details
-    TimelineCard.tsx       flight event timeline / cancellation notice
-    Board.tsx              airport departures & arrivals board
-    Watchlist.tsx          saved flights and suggestions
-    ui.tsx                 status pill, star button, icons
-  data/
-    airports.ts            64 airports with coordinates and IANA time zones
-    flights.ts             46 simulated services on a rolling daily schedule
-  lib/
-    flight.ts              status + telemetry simulation, great-circle maths
-    format.ts              time-zone aware formatting helpers
-  styles.css               design tokens and all component styles
+  App.tsx
+  components/       search, flight details, map, airport boards, watchlist
+  data/             airports, airlines, sample flights
+  domain/models.ts  shared flight/data-source types
+  services/         provider interface and sample adapter
+  lib/              schedule simulation and time/route formatting
+  styles.css        responsive design system
 ```
 
-## How the simulation works
-
-Schedules are anchored to a five-minute boundary at page load, with each flight carrying an offset
-from that baseline, a block time, and an optional delay. Every second the clock advances and the
-derived state is recomputed:
-
-- status thresholds (scheduled → boarding → climbing → in flight → descending → landing → landed)
-- great-circle position along the route
-- altitude and speed from a climb/cruise/descent profile, with small live jitter
-- vertical rate from the altitude curve, heading from the route bearing
-- local times and calendar-day shifts per airport time zone
-
-Because everything is derived from the current clock, the dashboard stays coherent however long the
-page is left open.
-
-## Credits
-
-Country outlines come from [Natural Earth](https://www.naturalearthdata.com/) via the
-[`world-atlas`](https://github.com/topojson/world-atlas) package. Maps are drawn with
-[`d3-geo`](https://github.com/d3/d3-geo) and [`topojson-client`](https://github.com/topojson/topojson-client).
-Type is Inter and JetBrains Mono, bundled locally through Fontsource.
+See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for the baseline inspection and implementation notes.

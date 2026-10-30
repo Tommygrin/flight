@@ -1,4 +1,5 @@
 import Search from './Search'
+import type { Flight } from '../domain/models'
 
 export type View = 'track' | 'board' | 'watchlist'
 
@@ -9,11 +10,12 @@ interface HeaderProps {
   onNavigate: (view: View) => void
   onSelectFlight: (id: string) => void
   onSelectAirport: (code: string) => void
+  flights: Flight[]
 }
 
 const NAV: { key: View; label: string }[] = [
   { key: 'track', label: 'Track' },
-  { key: 'board', label: 'Live board' },
+  { key: 'board', label: 'Flight board' },
   { key: 'watchlist', label: 'Watchlist' },
 ]
 
@@ -38,6 +40,7 @@ export default function Header({
   onNavigate,
   onSelectFlight,
   onSelectAirport,
+  flights,
 }: HeaderProps) {
   const clock = localClock(now)
 
@@ -60,7 +63,7 @@ export default function Header({
           </span>
           <span className="brand-text">
             SkyTrace
-            <span className="brand-live">LIVE</span>
+            <span className="brand-live">DEMO</span>
           </span>
         </button>
 
@@ -82,9 +85,9 @@ export default function Header({
         </nav>
 
         <div className="topbar-right">
-          <Search now={now} onSelectFlight={onSelectFlight} onSelectAirport={onSelectAirport} />
+          <Search now={now} flights={flights} onSelectFlight={onSelectFlight} onSelectAirport={onSelectAirport} />
           <div className="clock" title="Your local time">
-            <span className="live-dot" />
+            <span className="clock-indicator" aria-hidden="true" />
             <span className="clock-time">{clock.time}</span>
             <span className="clock-zone">{clock.zone}</span>
           </div>

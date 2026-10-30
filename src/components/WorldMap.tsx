@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   geoNaturalEarth1,
   geoPath,
@@ -74,6 +74,8 @@ export default function WorldMap({
   showNetwork,
   onSelectFlight,
 }: WorldMapProps) {
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState<[number, number]>([0, 0])
   const from = getAirport(flight.from)
   const to = getAirport(flight.to)
   const rotation = useMemo(() => routeRotation(flight), [flight])
@@ -142,15 +144,20 @@ export default function WorldMap({
       : snap.progress >= 1
         ? 'ON GROUND · ARRIVED'
         : 'ON GROUND · SCHEDULED'
+  const viewWidth = W / zoom
+  const viewHeight = H / zoom
+  const viewX = (W - viewWidth) / 2 + pan[0]
+  const viewY = (H - viewHeight) / 2 + pan[1]
+  const panMap = (x: number, y: number) => setPan(([currentX, currentY]) => [currentX + x / zoom, currentY + y / zoom])
 
   return (
     <div className="map-wrap">
       <svg
         className="world-map"
-        viewBox={`0 0 ${W} ${H}`}
+        viewBox={`${viewX} ${viewY} ${viewWidth} ${viewHeight}`}
         preserveAspectRatio="xMidYMid meet"
         role="img"
-        aria-label={`Live map of ${flight.id} from ${from.city} to ${to.city}`}
+        aria-label={`Simulated flight map of ${flight.id} from ${from.city} to ${to.city}`}
       >
         <defs>
           <linearGradient id="ocean" x1="0" y1="0" x2="0" y2="1">
@@ -322,9 +329,9 @@ export default function WorldMap({
 
         {/* corner HUD */}
         <g className="map-hud">
-          <circle cx={18} cy={22} r={3} className="live-dot" />
+          <circle cx={18} cy={22} r={3} className="demo-dot" />
           <text x={28} y={26} className="hud-label">
-            {flight.cancelled ? 'NO ACTIVE TRACKING' : 'LIVE TRAFFIC'}
+            {flight.cancelled ? 'NO ACTIVE TRACKING' : 'DEMO TRAFFIC'}
           </text>
           <text x={16} y={H - 16} className="hud-label">
             {hudLeft}
@@ -334,6 +341,16 @@ export default function WorldMap({
           </text>
         </g>
       </svg>
+      <div className="map-controls" role="group" aria-label="Map controls">
+        <button type="button" aria-label="Zoom in" onClick={() => setZoom((value) => Math.min(2.4, Number((value + 0.25).toFixed(2))))}>+</button>
+        <button type="button" aria-label="Zoom out" onClick={() => setZoom((value) => Math.max(1, Number((value - 0.25).toFixed(2))))}>−</button>
+        <span className="map-control-divider" aria-hidden="true" />
+        <button type="button" aria-label="Pan map left" onClick={() => panMap(-70, 0)}>←</button>
+        <button type="button" aria-label="Pan map right" onClick={() => panMap(70, 0)}>→</button>
+        <button type="button" aria-label="Pan map up" onClick={() => panMap(0, -55)}>↑</button>
+        <button type="button" aria-label="Pan map down" onClick={() => panMap(0, 55)}>↓</button>
+        <button type="button" className="map-reset" onClick={() => { setZoom(1); setPan([0, 0]) }}>Reset</button>
+      </div>
     </div>
   )
 }

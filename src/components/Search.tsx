@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AIRLINES, AIRPORTS, getAirport, type Airport } from '../data/airports'
-import { FLIGHTS, type Flight } from '../data/flights'
+import type { Flight } from '../domain/models'
 import { statusFor } from '../lib/flight'
 
 interface SearchProps {
   now: number
+  flights: Flight[]
   onSelectFlight: (id: string) => void
   onSelectAirport: (code: string) => void
 }
@@ -50,7 +51,7 @@ function scoreFlight(flight: Flight, query: string): number {
   return -1
 }
 
-export default function Search({ now, onSelectFlight, onSelectAirport }: SearchProps) {
+export default function Search({ now, flights, onSelectFlight, onSelectAirport }: SearchProps) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
@@ -60,13 +61,13 @@ export default function Search({ now, onSelectFlight, onSelectAirport }: SearchP
   const results = useMemo(() => {
     const trimmed = query.trim()
     if (!trimmed) {
-      const flights = POPULAR.map((id) => FLIGHTS.find((f) => f.id === id)).filter(
+      const popularFlights = POPULAR.map((id) => flights.find((f) => f.id === id)).filter(
         (f): f is Flight => Boolean(f),
       )
-      return { flights, airports: [] as Airport[] }
+      return { flights: popularFlights, airports: [] as Airport[] }
     }
 
-    const flights = FLIGHTS.map((flight) => ({ flight, score: scoreFlight(flight, trimmed) }))
+    const matches = flights.map((flight) => ({ flight, score: scoreFlight(flight, trimmed) }))
       .filter((entry) => entry.score > 0)
       .sort((a, b) => b.score - a.score || a.flight.id.localeCompare(b.flight.id))
       .slice(0, 5)
@@ -78,8 +79,8 @@ export default function Search({ now, onSelectFlight, onSelectAirport }: SearchP
       return fields.some((field) => normalise(field).includes(q))
     }).slice(0, 3)
 
-    return { flights, airports }
-  }, [query])
+    return { flights: matches, airports }
+  }, [query, flights])
 
   const items: Result[] = useMemo(
     () => [

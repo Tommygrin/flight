@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { AIRLINES, getAirport } from '../data/airports'
-import { FLIGHTS, type Flight } from '../data/flights'
+import type { Flight } from '../domain/models'
 import {
   dayOffset,
   formatDate,
@@ -16,6 +16,7 @@ interface BoardProps {
   airportCode: string
   tab: Tab
   allSnapshots: FlightSnapshot[]
+  flights: Flight[]
   onSelectAirport: (code: string) => void
   onSelectFlight: (id: string) => void
   onTabChange: (tab: Tab) => void
@@ -90,25 +91,36 @@ export default function Board({
   airportCode,
   tab,
   allSnapshots,
+  flights,
   onSelectAirport,
   onSelectFlight,
   onTabChange,
 }: BoardProps) {
   const airport = getAirport(airportCode)
+  const [airlineFilter, setAirlineFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
 
   const rows = useMemo(() => {
-    const list = FLIGHTS.filter((flight) =>
+    const list = flights.filter((flight) =>
       tab === 'departures' ? flight.from === airportCode : flight.to === airportCode,
     ).map((flight) => {
       const snap = allSnapshots.find((s) => s.flight.id === flight.id) ?? snapshot(flight, now)
       const time = tab === 'departures' ? snap.estimatedDep : snap.estimatedArr
       return { flight, snap, time }
     })
-    return list.sort((a, b) => a.time - b.time)
-  }, [airportCode, tab, allSnapshots, now])
+    return list
+      .filter(({ flight }) => airlineFilter === 'all' || flight.airlineCode === airlineFilter)
+      .filter(({ flight }) => {
+        if (statusFilter === 'all') return true
+        const key = statusFor(flight, now).key
+        if (statusFilter === 'in-flight') return ['climbing', 'enroute', 'descending', 'landing'].includes(key)
+        return key === statusFilter
+      })
+      .sort((a, b) => a.time - b.time)
+  }, [airportCode, tab, allSnapshots, flights, now, airlineFilter, statusFilter])
 
   const stats = useMemo(() => {
-    const base = FLIGHTS.filter((f) => (tab === 'departures' ? f.from : f.to) === airportCode)
+    const base = flights.filter((f) => (tab === 'departures' ? f.from : f.to) === airportCode)
     const states = base.map((flight) => statusFor(flight, now))
     return {
       total: base.length,
@@ -118,7 +130,7 @@ export default function Board({
       cancelled: states.filter((s) => s.key === 'cancelled').length,
       landed: states.filter((s) => s.key === 'landed').length,
     }
-  }, [airportCode, tab, now])
+  }, [airportCode, tab, now, flights])
 
   const weather = weatherFor(airportCode)
 
@@ -135,9 +147,9 @@ export default function Board({
           </p>
         </div>
         <span className="live-tag">
-          <span className="live-dot" />
-          <span>Live</span>
-          <span className="live-tag-sub">simulated feed</span>
+          <span className="demo-dot" />
+          <span>Demo data</span>
+          <span className="live-tag-sub">sample schedule</span>
         </span>
       </div>
 
@@ -183,7 +195,30 @@ export default function Board({
                 Arrivals
               </button>
             </div>
-            <span className="board-hint">{rows.length} flights · local times</span>
+            <div className="board-filters">
+              <label>
+                <span className="sr-only">Filter by airline</span>
+                <select aria-label="Filter by airline" value={airlineFilter} onChange={(event) => setAirlineFilter(event.target.value)}>
+                  <option value="all">All airlines</option>
+                  {[...new Set(flights.map((flight) => flight.airlineCode))].sort().map((code) => (
+                    <option key={code} value={code}>{AIRLINES[code]?.name ?? code}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span className="sr-only">Filter by status</span>
+                <select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                  <option value="all">All statuses</option>
+                  <option value="scheduled">On time</option>
+                  <option value="boarding">Boarding</option>
+                  <option value="delayed">Delayed</option>
+                  <option value="in-flight">In flight</option>
+                  <option value="landed">Landed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </label>
+              <span className="board-hint">{rows.length} flights · local times</span>
+            </div>
           </div>
 
           <div className="board-table" role="table" aria-label={`${airport.city} ${tab}`}>
@@ -197,7 +232,12 @@ export default function Board({
             </div>
 
             {rows.length === 0 ? (
-              <div className="board-empty">No flights scheduled at this airport right now.</div>
+              <div className="board-empty">
+                <span>{airlineFilter !== 'all' || statusFilter !== 'all' ? 'No flights match these filters at this airport.' : 'No flights scheduled at this airport right now.'}</span>
+                {(airlineFilter !== 'all' || statusFilter !== 'all') && (
+                  <button type="button" onClick={() => { setAirlineFilter('all'); setStatusFilter('all') }}>Clear filters</button>
+                )}
+              </div>
             ) : (
               rows.map(({ flight, time }) => {
                 const airline = AIRLINES[flight.airlineCode]

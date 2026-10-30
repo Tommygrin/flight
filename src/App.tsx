@@ -9,9 +9,13 @@ import Watchlist from './components/Watchlist'
 import { getAirport } from './data/airports'
 import { FLIGHTS, getFlight } from './data/flights'
 import { snapshot } from './lib/flight'
+import { formatUtcClock } from './lib/format'
+import type { DataSourceStatus, FlightRecord } from './domain/models'
+import { sampleFlightProvider } from './services/flightProvider'
 
 const WATCHLIST_KEY = 'skytrace.watchlist.v1'
 const DEFAULT_WATCHLIST = ['EK202', 'QF12']
+let watchlistStorageAvailable = true
 
 function readWatchlist(): string[] {
   try {
@@ -22,7 +26,7 @@ function readWatchlist(): string[] {
       return parsed.filter((id): id is string => typeof id === 'string' && FLIGHTS.some((f) => f.id === id))
     }
   } catch {
-    /* ignore corrupt storage */
+    watchlistStorageAvailable = false
   }
   return DEFAULT_WATCHLIST
 }
@@ -35,6 +39,32 @@ export default function App() {
   const [boardTab, setBoardTab] = useState<Tab>('departures')
   const [watchlist, setWatchlist] = useState<string[]>(readWatchlist)
   const [toast, setToast] = useState<string | null>(null)
+  const [flightRecords, setFlightRecords] = useState<FlightRecord[] | null>(null)
+  const [dataError, setDataError] = useState<string | null>(null)
+  const [loadAttempt, setLoadAttempt] = useState(0)
+  const [storageWarning, setStorageWarning] = useState(false)
+  const flights = useMemo(() => flightRecords?.map((record) => record.flight) ?? [], [flightRecords])
+  const sourceStatus: DataSourceStatus = dataError
+    ? { ...sampleFlightProvider.getStatus(), mode: 'unavailable', label: 'Data unavailable', message: dataError }
+    : sampleFlightProvider.getStatus()
+
+  useEffect(() => {
+    if (!watchlistStorageAvailable) setStorageWarning(true)
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    setDataError(null)
+    sampleFlightProvider.loadFlights().then(
+      (records) => {
+        if (active) setFlightRecords(records)
+      },
+      (error: unknown) => {
+        if (active) setDataError(error instanceof Error ? error.message : 'The flight data could not be loaded.')
+      },
+    )
+    return () => { active = false }
+  }, [loadAttempt])
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000)
@@ -45,7 +75,7 @@ export default function App() {
     try {
       localStorage.setItem(WATCHLIST_KEY, JSON.stringify(watchlist))
     } catch {
-      /* storage may be unavailable */
+      setStorageWarning(true)
     }
   }, [watchlist])
 
@@ -63,8 +93,8 @@ export default function App() {
   }, [selectedId])
 
   const allSnapshots = useMemo(
-    () => FLIGHTS.map((flight) => snapshot(flight, now)),
-    [now],
+    () => flights.map((flight) => snapshot(flight, now)),
+    [flights, now],
   )
 
   const selectedSnap = useMemo(
@@ -110,9 +140,28 @@ export default function App() {
         onNavigate={navigate}
         onSelectFlight={selectFlight}
         onSelectAirport={selectAirport}
+        flights={flights}
       />
 
+      <aside className={`data-banner ${sourceStatus.mode === 'unavailable' ? 'is-error' : ''}`} role="status">
+        <span className="data-banner-badge">{sourceStatus.label}</span>
+        <span>{sourceStatus.message}</span>
+        <span className="data-banner-time">Simulation clock · {formatUtcClock(now)} UTC</span>
+        {sourceStatus.mode === 'unavailable' && (
+          <button type="button" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Retry</button>
+        )}
+      </aside>
+
       <main className="shell">
+        {!flightRecords ? (
+          <section className="card data-state" aria-live="polite">
+            <span className="eyebrow">{dataError ? 'Connection issue' : 'Preparing your flight board'}</span>
+            <h1>{dataError ? 'Flight data could not be loaded' : 'Loading sample flights…'}</h1>
+            <p>{dataError ?? 'Loading the locally bundled demonstration schedule. No network request is required.'}</p>
+            {dataError && <button type="button" className="primary-button" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Try again</button>}
+          </section>
+        ) : <>
+        {storageWarning && <p className="storage-warning" role="status">Your watchlist is available for this session, but browser storage is blocked, so changes may not persist on this device.</p>}
         {view === 'track' && (
           <div className="view-enter" key={selectedId}>
             <nav className="breadcrumb" aria-label="Breadcrumb">
@@ -122,7 +171,7 @@ export default function App() {
               <span aria-hidden="true">/</span>
               <span>Flight {selectedSnap.flight.id}</span>
               <span aria-hidden="true">/</span>
-              <span className="breadcrumb-current">Live tracking</span>
+              <span className="breadcrumb-current">Flight tracking</span>
             </nav>
 
             <FlightHero
@@ -166,6 +215,7 @@ export default function App() {
             airportCode={boardAirport}
             tab={boardTab}
             allSnapshots={allSnapshots}
+            flights={flights}
             onSelectAirport={(code) => setBoardAirport(code)}
             onSelectFlight={selectFlight}
             onTabChange={setBoardTab}
@@ -176,10 +226,12 @@ export default function App() {
           <Watchlist
             now={now}
             watchlist={watchlist}
+            flights={flights}
             onSelectFlight={selectFlight}
             onToggleWatch={toggleWatch}
           />
         )}
+        </>}
       </main>
 
       <footer className="footer">
@@ -188,7 +240,7 @@ export default function App() {
             <span className="footer-mark" aria-hidden="true">✈</span>
             <span>
               <strong>SkyTrace</strong>
-              <span>Live flight tracking</span>
+              <span>Flight tracking · demo mode</span>
             </span>
           </div>
           <p className="footer-note">
@@ -198,7 +250,7 @@ export default function App() {
           <div className="footer-meta">
             <span>UTC {new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }).format(now)}</span>
             <span className="footer-dot" />
-            <span>{FLIGHTS.length} flights tracked</span>
+            <span>{flights.length} sample flights</span>
           </div>
         </div>
       </footer>

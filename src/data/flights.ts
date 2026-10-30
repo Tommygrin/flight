@@ -1,23 +1,6 @@
-import { AIRLINES, getAirport } from './airports'
-
-export interface Flight {
-  id: string
-  airlineCode: keyof typeof AIRLINES
-  from: string
-  to: string
-  /** scheduled departure, minutes from session baseline (negative = already departed) */
-  depOffsetMin: number
-  durationMin: number
-  delayMin: number
-  aircraft: string
-  registration: string
-  depTerminal: string
-  depGate: string
-  arrTerminal: string
-  arrGate: string
-  baggage: string
-  cancelled?: boolean
-}
+import { getAirport } from './airports'
+import type { Flight } from '../domain/models'
+export type { Flight } from '../domain/models'
 
 /* Baseline is snapped to a 5-minute boundary so departure boards read naturally. */
 const BASELINE = Math.ceil(Date.now() / 300_000) * 300_000

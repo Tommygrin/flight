@@ -18,9 +18,9 @@ export default function MapCard({ snap, network, onSelectFlight }: MapCardProps)
     <section className="card map-card">
       <div className="map-head">
         <div className="map-title">
-          <span className="live-dot" />
-          <h2>Live position</h2>
-          <span className="map-updated">updated just now</span>
+          <span className="demo-dot" />
+          <h2>Simulated position</h2>
+          <span className="map-updated">simulation clock</span>
         </div>
         <button
           type="button"

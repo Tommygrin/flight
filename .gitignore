@@ -6,3 +6,8 @@ dist-ssr
 .vite
 *.log
 .DS_Store
+
+# Local environment files; keep the safe template in version control
+.env
+.env.*
+!.env.example

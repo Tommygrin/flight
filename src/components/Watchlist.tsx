@@ -1,5 +1,5 @@
 import { AIRLINES, getAirport } from '../data/airports'
-import { FLIGHTS, type Flight } from '../data/flights'
+import type { Flight } from '../domain/models'
 import { snapshot, type FlightSnapshot } from '../lib/flight'
 import {
   dayOffset,
@@ -14,6 +14,7 @@ import { formatFlightNo } from './FlightHero'
 interface WatchlistProps {
   now: number
   watchlist: string[]
+  flights: Flight[]
   onSelectFlight: (id: string) => void
   onToggleWatch: (id: string) => void
 }
@@ -91,13 +92,13 @@ function WatchCard({
   )
 }
 
-export default function Watchlist({ now, watchlist, onSelectFlight, onToggleWatch }: WatchlistProps) {
+export default function Watchlist({ now, watchlist, flights: allFlights, onSelectFlight, onToggleWatch }: WatchlistProps) {
   const flights = watchlist
-    .map((id) => FLIGHTS.find((flight) => flight.id === id))
+    .map((id) => allFlights.find((flight) => flight.id === id))
     .filter((flight): flight is Flight => Boolean(flight))
 
   const suggestions = SUGGESTIONS.filter((id) => !watchlist.includes(id))
-    .map((id) => FLIGHTS.find((flight) => flight.id === id))
+    .map((id) => allFlights.find((flight) => flight.id === id))
     .filter((flight): flight is Flight => Boolean(flight))
     .slice(0, 3)
 
@@ -109,12 +110,12 @@ export default function Watchlist({ now, watchlist, onSelectFlight, onToggleWatc
           <h2>
             Watchlist <span className="view-head-muted">{flights.length}</span>
           </h2>
-          <p className="view-sub">Flights you are following, updated live as the schedule moves.</p>
+          <p className="view-sub">Flights you have saved on this device. Sample schedules advance on a simulation clock.</p>
         </div>
         <span className="live-tag">
-          <span className="live-dot" />
-          <span>Live</span>
-          <span className="live-tag-sub">simulated feed</span>
+          <span className="demo-dot" />
+          <span>Demo data</span>
+          <span className="live-tag-sub">sample schedule</span>
         </span>
       </div>
 
@@ -123,7 +124,7 @@ export default function Watchlist({ now, watchlist, onSelectFlight, onToggleWatc
           <span className="empty-icon" aria-hidden="true">☆</span>
           <h3>Your watchlist is empty</h3>
           <p>
-            Star a flight while tracking it and it will appear here, with live status and a quick
+            Star a flight while tracking it and it will appear here, with simulated status and a quick
             route summary.
           </p>
           <div className="empty-actions">

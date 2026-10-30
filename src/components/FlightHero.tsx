@@ -69,8 +69,8 @@ export default function FlightHero({ snap, watched, onToggleWatch }: FlightHeroP
 
         <div className="hero-actions">
           <span className={`live-tag ${landed || cancelled ? 'is-idle' : ''}`}>
-            <span className="live-dot" />
-            <span>{cancelled ? 'Not operating' : landed ? 'Tracking complete' : 'Live'}</span>
+            <span className="demo-dot" />
+            <span>{cancelled ? 'Not operating' : landed ? 'Schedule complete' : 'Demo tracking'}</span>
             <span className="live-tag-sub">simulated feed</span>
           </span>
           <StarButton active={watched} onClick={onToggleWatch} />

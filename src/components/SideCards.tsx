@@ -84,9 +84,9 @@ export function TelemetryCard({ snap }: { snap: FlightSnapshot }) {
   return (
     <section className="card side-card">
       <div className="card-head">
-        <h2>Live telemetry</h2>
-        <span className={`card-head-note ${snap.airborne ? 'is-live' : ''}`}>
-          {snap.airborne ? 'streaming' : 'on ground'}
+        <h2>Estimated telemetry</h2>
+        <span className={`card-head-note ${snap.airborne ? 'is-simulated' : ''}`}>
+          {snap.airborne ? 'simulated' : 'on ground'}
         </span>
       </div>
       <div className="telemetry-grid">
